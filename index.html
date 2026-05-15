@@ -85,12 +85,27 @@
 
         // Logic for fetching prices (CS Tip: Using a Proxy because e-petrol doesn't allow direct CORS)
         async function fetchPrices() {
-            try {
-                // In a real app, you'd scrape e-petrol.pl/notowania using a small worker.
-                // For this demo, these are the May 14, 2026 averages.
-                console.log("Prices loaded from static backup.");
-            } catch (e) { console.error("Fetch failed"); }
-        }
+    try {
+        // Fetch the JSON file created by your GitHub Action
+        const response = await fetch('prices.json');
+        const data = await response.json();
+        
+        // Update the UI
+        document.getElementById('live-pb95').innerText = `${data.pb95} PLN`;
+        document.getElementById('live-on').innerText = `${data.on} PLN`;
+        document.getElementById('live-lpg').innerText = `${data.lpg} PLN`;
+        
+        // Update the 'Use' buttons to use the real data
+        document.querySelectorAll('[onclick^="usePrice"]').forEach(btn => {
+            if (btn.innerText.includes("Pb95")) btn.setAttribute("onclick", `usePrice('${data.pb95}')`);
+            if (btn.innerText.includes("Diesel")) btn.setAttribute("onclick", `usePrice('${data.on}')`);
+        });
+
+    } catch (e) {
+        console.log("Could not load prices.json, using defaults.");
+    }
+}
+// Run on load
         fetchPrices();
     </script>
 </body>

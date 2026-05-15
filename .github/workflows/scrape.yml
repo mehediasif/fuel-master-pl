@@ -1,0 +1,32 @@
+name: Daily Fuel Price Update
+
+on:
+  schedule:
+    - cron: '0 9 * * 3' # Runs every Wednesday at 09:00 UTC
+  workflow_dispatch: # Allows you to run it manually
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run scraper
+        run: python scraper.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "FuelBot"
+          git config --global user.email "bot@github.com"
+          git add prices.json
+          git commit -m "Auto-update fuel prices" || exit 0
+          git push
