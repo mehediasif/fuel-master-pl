@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Master PL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .active-tab { border-bottom: 3px solid #ef94f2; color: #e240ed; }
+        input { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; width: 100%; font-size: 1.1rem; }
+        .result-box { background: #f3f4f6; border-radius: 12px; padding: 20px; margin-top: 10px; }
+        .price-card { background: #1a1a1a; color: white; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 font-sans p-6 max-w-md mx-auto">
+    <h1 class="text-2xl font-bold text-center mb-6">Fuel Master <span class="text-lime-500">PL</span></h1>
+    
+    <div class="flex justify-around mb-8 border-b border-gray-200 text-sm">
+        <button id="tab-volume" class="pb-2 px-2 active-tab font-semibold" onclick="switchTab('volume')">Cost</button>
+        <button id="tab-efficiency" class="pb-2 px-2 font-semibold text-gray-400" onclick="switchTab('efficiency')">Efficiency</button>
+        <button id="tab-prices" class="pb-2 px-2 font-semibold text-gray-400" onclick="switchTab('prices')">PL Prices</button>
+    </div>
+
+    <div id="content-volume" class="space-y-4">
+        <div><label class="text-xs font-bold uppercase text-gray-500">Consumption (L/100km)</label><input type="number" id="vol-eff" value="7.5"></div>
+        <div><label class="text-xs font-bold uppercase text-gray-500">Distance (km)</label><input type="number" id="vol-dist" placeholder="e.g. 360"></div>
+        <div><label class="text-xs font-bold uppercase text-gray-500">Price (PLN/L)</label><input type="number" id="vol-price" step="0.01" value="6.50"></div>
+        <div class="result-box">
+            <p class="text-sm text-gray-500">Total Trip Cost:</p>
+            <p class="text-3xl font-black text-lime-600"><span id="res-cost">0.00</span> <span class="text-lg">PLN</span></p>
+        </div>
+        <button onclick="calculateCost()" class="w-full bg-[#bef264] text-black font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform">Calculate Trip</button>
+    </div>
+
+    <div id="content-efficiency" class="hidden space-y-4">
+        <div><label class="text-xs font-bold uppercase text-gray-500">Fuel Used (Liters)</label><input type="number" id="eff-cons"></div>
+        <div><label class="text-xs font-bold uppercase text-gray-500">Distance Driven (km)</label><input type="number" id="eff-dist"></div>
+        <div class="result-box space-y-2">
+            <div class="flex justify-between"><span>L/100 km:</span><span id="res-l100" class="font-bold text-lime-600">0.00</span></div>
+            <div class="flex justify-between"><span>km per Liter:</span><span id="res-kml" class="font-bold text-lime-600">0.00</span></div>
+        </div>
+        <button onclick="calculateEff()" class="w-full bg-[#bef264] text-black font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform">Calculate Efficiency</button>
+    </div>
+
+    <div id="content-prices" class="hidden space-y-3">
+        <p class="text-xs text-gray-400 mb-4 text-center italic">Average retail prices in Poland (via e-petrol.pl)</p>
+        <div class="price-card"><span>Pb95 (Petrol)</span><span class="font-bold text-lime-400" id="live-pb95">6.28 PLN</span></div>
+        <div class="price-card"><span>ON (Diesel)</span><span class="font-bold text-lime-400" id="live-on">6.81 PLN</span></div>
+        <div class="price-card"><span>LPG</span><span class="font-bold text-lime-400" id="live-lpg">3.72 PLN</span></div>
+        <p class="text-[10px] text-gray-400 text-center mt-4">Note: Prices are updated weekly. Tapping "Use" will fill the Cost tab.</p>
+        <div class="flex gap-2">
+            <button onclick="usePrice('6.28')" class="flex-1 bg-gray-200 py-2 rounded-lg text-xs font-bold">Use Pb95</button>
+            <button onclick="usePrice('6.81')" class="flex-1 bg-gray-200 py-2 rounded-lg text-xs font-bold">Use Diesel</button>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            ['volume', 'efficiency', 'prices'].forEach(t => {
+                document.getElementById('content-' + t).classList.toggle('hidden', t !== tab);
+                document.getElementById('tab-' + t).className = t === tab ? 'pb-2 px-2 active-tab font-semibold' : 'pb-2 px-2 font-semibold text-gray-400';
+            });
+        }
+
+        function calculateCost() {
+            const eff = parseFloat(document.getElementById('vol-eff').value) || 0;
+            const dist = parseFloat(document.getElementById('vol-dist').value) || 0;
+            const price = parseFloat(document.getElementById('vol-price').value) || 0;
+            document.getElementById('res-cost').innerText = ((dist / 100) * eff * price).toFixed(2);
+        }
+
+        function calculateEff() {
+            const cons = parseFloat(document.getElementById('eff-cons').value) || 0;
+            const dist = parseFloat(document.getElementById('eff-dist').value) || 0;
+            if (dist > 0) {
+                document.getElementById('res-l100').innerText = ((cons / dist) * 100).toFixed(2);
+                document.getElementById('res-kml').innerText = (dist / cons).toFixed(2);
+            }
+        }
+
+        function usePrice(val) {
+            document.getElementById('vol-price').value = val;
+            switchTab('volume');
+        }
+
+        // Logic for fetching prices (CS Tip: Using a Proxy because e-petrol doesn't allow direct CORS)
+        async function fetchPrices() {
+    try {
+        // Fetch the JSON file created by your GitHub Action
+        const response = await fetch('https://raw.githubusercontent.com/mehediasif/fuelmaster2026/main/prices.json');
+        const data = await response.json();
+        
+        // Update the UI
+        document.getElementById('live-pb95').innerText = `${data.pb95} PLN`;
+        document.getElementById('live-on').innerText = `${data.on} PLN`;
+        document.getElementById('live-lpg').innerText = `${data.lpg} PLN`;
+        
+        // Update the 'Use' buttons to use the real data
+        document.querySelectorAll('[onclick^="usePrice"]').forEach(btn => {
+            if (btn.innerText.includes("Pb95")) btn.setAttribute("onclick", `usePrice('${data.pb95}')`);
+            if (btn.innerText.includes("Diesel")) btn.setAttribute("onclick", `usePrice('${data.on}')`);
+        });
+
+    } catch (e) {
+        console.log("Could not load prices.json, using defaults.");
+    }
+}
+// Run on load
+        fetchPrices();
+    </script>
+</body>
+</html>
